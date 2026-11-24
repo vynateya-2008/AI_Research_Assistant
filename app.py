@@ -1,32 +1,40 @@
 
 import streamlit as st
-from google import genai
-from dotenv import load_dotenv
 import os
+from groq import Groq
+from dotenv import load_dotenv
 
-# Load the API key
+# Load environment variables
 load_dotenv()
 
-try:
-    API_KEY = st.secrets["GEMINI_API_KEY"]
-except Exception:
-    API_KEY = os.getenv("GEMINI_API_KEY")
-
-# Configure the website
+# Page configuration
 st.set_page_config(
     page_title="AI Research Assistant",
     page_icon="🎓",
     layout="centered"
 )
 
+# Get Groq API key
+api_key = os.getenv("GROQ_API_KEY")
+
+try:
+    if not api_key:
+        api_key = st.secrets["GROQ_API_KEY"]
+except Exception:
+    pass
+
 # Website heading
 st.title("🎓 AI Research Assistant")
-st.write("Generate research titles, abstracts, keywords and objectives using AI.")
+
+st.write(
+    "Generate research titles, abstracts, "
+    "keywords and objectives using AI."
+)
 
 st.divider()
 
-# User input
-st.subheader("Enter Your Project Details")
+# Main input section
+st.header("Enter Your Project Details")
 
 project_idea = st.text_area(
     "Describe your project idea:",
@@ -39,9 +47,11 @@ domain = st.selectbox(
     [
         "Artificial Intelligence (AI)",
         "Machine Learning",
+        "Deep Learning",
+        "Data Science",
+        "Computer Science",
         "Internet of Things (IoT)",
-        "Web Development",
-        "Cybersecurity",
+        "Cyber Security",
         "Other"
     ]
 )
@@ -52,66 +62,87 @@ if st.button("✨ Generate Research Content", use_container_width=True):
     if not project_idea.strip():
         st.warning("Please enter your project idea.")
 
-    elif not API_KEY:
-        st.error("API key not found. Please check your .env file.")
+    elif not api_key:
+        st.error(
+            "Groq API key not found. "
+            "Please add GROQ_API_KEY in Streamlit Secrets."
+        )
 
     else:
-        with st.spinner("Gemini AI is generating your research content..."):
+        try:
+            with st.spinner("AI is generating your research content..."):
 
-            try:
-                client = genai.Client(api_key=API_KEY)
+                client = Groq(api_key=api_key)
 
                 prompt = f"""
-                You are an expert research assistant.
+                You are an academic research assistant.
 
-                Project idea: {project_idea}
-                Domain: {domain}
+                Project Idea: {project_idea}
+                Project Domain: {domain}
 
-                Generate the following:
+                Generate the following academic research content:
 
-                1. THREE RESEARCH TITLE OPTIONS
-                Make them professional and meaningful.
+                1. Research Title:
+                Suggest three suitable research titles.
 
-                2. RESEARCH ABSTRACT
-                Write an abstract between 150 and 200 words.
+                2. Abstract:
+                Write a clear academic abstract of approximately
+                150-200 words.
 
-                3. FIVE KEYWORDS
-                List five important keywords.
+                3. Keywords:
+                Provide 5-8 relevant research keywords.
 
-                4. THREE RESEARCH OBJECTIVES
-                Write three clear objectives.
+                4. Research Objectives:
+                Provide 4-5 clear and achievable objectives.
 
-                5. THREE FUTURE ENHANCEMENTS
-                Suggest three possible improvements.
-
-                Use simple, clear and professional English.
-                Use headings for each section.
+                Use simple academic English.
+                Organize the answer with clear headings.
+                Make the content relevant to the project idea.
                 """
 
-                response = client.interactions.create(
-                    model="gemini-3.8-flash",
-                    input=prompt
+                response = client.chat.completions.create(
+                    model="openai/gpt-oss-120b",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a helpful academic "
+                                "research assistant."
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.5,
+                    max_completion_tokens=2500
                 )
 
-                result = response.output_text
+                result = response.choices[0].message.content
 
-                st.success("Research content generated successfully!")
+            st.success("Research content generated successfully!")
 
-                st.divider()
-                st.subheader("📚 Generated Research Content")
+            st.divider()
 
-                st.markdown(result)
+            st.header("📚 Generated Research Content")
 
-                st.download_button(
-                    label="📥 Download Research Content",
-                    data=result,
-                    file_name="research_content.txt",
-                    mime="text/plain"
-                )
+            st.markdown(result)
 
-            except Exception as e:
-                st.error("Something went wrong. Please try again.")
-                st.caption(str(e))
+            st.download_button(
+                label="📥 Download Research Content",
+                data=result,
+                file_name="AI_Research_Content.txt",
+                mime="text/plain"
+            )
 
+        except Exception as e:
+            st.error("Something went wrong while generating content.")
+            st.exception(e)
+
+# Footer
 st.divider()
-st.caption("AI Research Assistant | Powered by Google Gemini")
+
+st.caption(
+    "AI Research Assistant | Powered by Groq"
+)
